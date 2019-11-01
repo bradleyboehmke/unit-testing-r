@@ -10,7 +10,3 @@ test_that("summarize() results in a double", {
 test_that("summarize() outputs proper dimensions", {
   expect_equal(length(summarized_df), 1)
 })
-
-test_that("dummy test to signal failure", {
-  expect_true(FALSE)
-})

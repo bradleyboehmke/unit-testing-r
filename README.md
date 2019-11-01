@@ -11,23 +11,26 @@ minimize these risks we should always include unit testing in our code.
 Moreover, unit testing should be incorporated and automated for not only
 R packages but also individual scripts.
 
-## Suggested Solution
-
-TBD
-
-## Available Packages
+## Suggested Solutions
 
 There are several packages and functions that provide various
 capabilities in the unit testing toolchain. The following provides a
 synopsis of the most commonly used and the sections that follow discuss
 how and when to implement them:
 
-  - R CMD check:  
-  - testthat:
-  - tinytest:
-  - lintr:
-  - mockery:
-  - covr:
+  - **R CMD check**: always run `R CMD check` to test the overall
+    structure and functionality of your R package. It will also run any
+    unit testing embedded in your package.
+  - **testthat**: probably the most comprehensive and commonly used
+    package for unit testing.
+  - **tinytest**: a lightweight alternative for unit testing when you’re
+    objective is to minimize dependencies, maximize CI/CD speed, and
+    also deploy tests with a package.
+  - **lintr**: linting package that checks adherence to a given style,
+    syntax errors and possible semantic issues.
+  - **mockery**: package that provides mocking functionality within unit
+    tests.
+  - **covr**: package that tracks test coverage for your R package.
 
 ## Directory Layout
 
@@ -115,10 +118,10 @@ provides you more flexibility.
 As previously mentioned, when unit testing an R package, we typically
 isolate unit tests into their own `tests/` subdirectory. The most common
 way to unit test R packages is to use the
-[testthat](https://testthat.r-lib.org/) package. When using testthat in
-a package we set up our `tests/` directory as follows and we also need
-to add testthat as a Suggests in the DESCRIPTION file. You can easily
-set up this structure using `usethis::use_testthat()`.
+[**testthat**](https://testthat.r-lib.org/) package. When using
+**testthat** in a package we set up our `tests/` directory as follows
+and we also need to add testthat as a Suggests in the DESCRIPTION file.
+You can easily set up this structure using `usethis::use_testthat()`.
 
     #> examplepkg/tests
     #> ├── testthat
@@ -168,8 +171,8 @@ You’ll notice 4 classes of .R files in this directory:
     down after testing.
 
 You do not need all these types of files. In fact, in many packages you
-will simply see the “test-xx.R” files. Within a “test-xx.R”, we
-typically have the following structure:
+will simply see the “test-xx.R” files. You can run Within a “test-xx.R”,
+we typically have the following structure:
 
 ![](images/test-structure.png)<!-- -->
 
@@ -194,6 +197,8 @@ We can run these tests multiple ways. Most often we run them with
 can have the results reported in multiple ways. By default it will
 report detailed results. Note that results can be “OK”, “F” for failure,
 “W” for warning, and “S” for skipped.
+
+**Note**: I have added a test to purposefully for demonstration reasons.
 
 ``` r
 > devtools::test()
@@ -235,26 +240,307 @@ Run silently but gather the results to be reported elsewhere:
 > devtools::test(reporter = "silent")
 ```
 
-So other options with `?Reporter`.
+So other options with
+`?Reporter`.
 
 ### Unit testing packages with tinytest
 
-### Package testing workflow
+[**tinytest**](https://github.com/markvanderloo/tinytest/blob/master/pkg/README.md)
+is an alternatative testing package that is lightweight and has no
+dependencies. This can be helpful when trying to minimize recursive
+dependencies and speeding up compute time:
 
-When building an R package, I typically:
+``` r
+compare <- itdepends::dep_weight(c("testthat", "tinytest"))
 
-1.  Set up the structure of the package and then run `R CMD check` to
-    make sure the structure is right.
+# dependencies
+compare[["user_deps"]]
+#> $testthat
+#> [1] "cli"        "crayon"     "digest"     "evaluate"   "magrittr"   "praise"     "R6"        
+#> [8] "rlang"      "withr"      "assertthat"
 
-2.  As I build a new function or do bug fixes, I run the unit tests
-    first until my code changes pass all unit tests and then I run `R
-    CMD check` to ensure no other package requirements got overlooked.
+$tinytest
+#> character(0)
 
-3.  
+# compare installation time
+# left=testthat; right=tinytest
+compare[["install_self"]]
+#> [1] 35.97  2.35
+```
+
+For the most part, **tinytest** has a similar setup approach as
+**testthat**:
+
+1.  a tinytest.R file goes into the `tests/` directory. This directs `R
+    CMD check` to run the tinytests.
+2.  place all tests, or scripts that have unit tests embedded in them,
+    in the `inst/tinytest` directory. This is different than
+    **testthat**, which places all testing scripts in `tests/testthat`
+    directory. This allows all tests to be shipped with the package,
+    which allows end-users to also run tests.
+3.  individual test files are R scripts that start with `test_xxx.R` and
+    include expectations (unit tests) such as
+    `expect_equal(myfunc(1), 0)`.
+
+To set up the proper baseline needs in your package for using
+**tinytest** just run `tinytest::setup_tinytest("packagedirectory")`. To
+see more details on how **tinytest** works check out this
+[overview](https://github.com/markvanderloo/tinytest/blob/master/pkg/README.md)
+and also see how its implemented in the
+[pdp](https://github.com/bgreenwell/pdp/tree/master/inst/tinytest) R
+packge.
+
 ## Testing for Non-packages
 
-If you need to test a single
+If you need to test a single script or possibly a directory of R code,
+you can still use **testthat** and **tinytest**. The process remains the
+same. For example, say we have a directory with some custom functions
+and some analysis script. We can still set up a subdirectory that
+contains our testing scripts.
+
+    #> .
+    #> ├── my_functions.R
+    #> ├── sample_script.R
+    #> └── tests
+    #>     ├── helper.R
+    #>     ├── setup.R
+    #>     ├── teardown.R
+    #>     ├── test-01-header.R
+    #>     ├── test-02-filter.R
+    #>     ├── test-03-summarize.R
+    #>     ├── test-04-lint.R
+    #>     └── test-05-demo-failure.R
+
+In this case, we only need the test files, any setup, helper, and
+teardown files. We do not need to the top level `testthat.R` or
+`tinytest.R` file since we do not run `R CMD check` on non-package level
+code.
+
+In this case, to test our function created in `my_functions.R` we just
+need to source them in the `setup.R` file so that they are available to
+be used across all unit test scripts. Note: `here::here()` simply finds
+the path to the root of the .RProj for this R project.
+
+![](images/setup-fx-testing.png)<!-- -->
+
+Implementation of our unit test is no different than demo’d in the
+package section. We can then run our tests using `testthat::test_dir()`
+to test the directory where all tests reside (or even
+`testthat::test_file()` if you only have on file with all the test
+requirements).
+
+``` r
+testthat::test_dir("tests")
+✔ |  OK F W S | Context
+✔ |   2       | header()
+✔ |   2       | filter()
+✔ |   2       | summarize()
+✔ |   1       | Require no code style errors [0.2 s]
+✖ |   0 1     | Demonstrate a test that fails
+───────────────────────────────────────────────────────────────────────────
+test-05-demo-failure.R:4: failure: dummy test to signal failure
+FALSE isn't true.
+───────────────────────────────────────────────────────────────────────────
+
+══ Results ════════════════════════════════════════════════════════════════
+Duration: 0.3 s
+
+OK:       7
+Failed:   1
+Warnings: 0
+Skipped:  0
+```
+
+As illustrated early, we can use special reporters in our
+`testthat::test_dir()` call to change how results are reported:
+
+``` r
+# only provide output if a test fails
+testthat::test_dir("tests", reporter = "fail")
+#> Error: Failures detected.
+```
+
+## Linting
+
+[Linting](https://en.wikipedia.org/wiki/Lint_\(software\)) is the
+process of analyzing source code to flag programming errors, bugs,
+stylistic errors, and suspicious constructs. Within R, the
+[**lintr**](https://github.com/jimhester/lintr) package checks adherence
+to a given style, syntax errors and possible semantic issues.
+
+**lintr** will check for many common programmatic deviations
+(i.e. syntax errors, absolute paths). It will also look for opinionated
+style formatting. Probably the most widely accepted and used style guide
+is [Hadley Wickham’s R Style Guide](http://r-pkgs.had.co.nz/style.html).
+However, realize that you can turn-off certain linters. See
+[here](https://github.com/jimhester/lintr) for available linters that
+can be turned on or off.
+
+To perform linting on a package, you can execute `lintr::lint_package()`
+on the root path of the package. It will apply the linters to all the R
+files in the package. You can also automate this process within unit
+testing by including a unit test that uses `lintr::expect_lint_free()`.
+
+![](images/pkg-linting.png)<!-- -->
+
+Now when you run your unit tests you will have a separate testing line
+item for code style. See the 4th test line item below:
+
+``` r
+devtools::test("examplepkg")
+Loading examplepkg
+Testing examplepkg
+✔ |  OK F W S | Context
+✔ |   2       | header()
+✔ |   2       | filter()
+✔ |   2       | summarize()
+✔ |   1       | Require no code style errors [1.0 s]
+✖ |   0 1     | Demonstrate a test that fails
+──────────────────────────────────────────────────────────────────────────────────
+test-05-demo-failure.R:4: failure: dummy test to signal failure
+FALSE isn't true.
+──────────────────────────────────────────────────────────────────────────────────
+
+══ Results ═══════════════════════════════════════════════════════════════════════
+Duration: 1.0 s
+
+OK:       7
+Failed:   1
+Warnings: 0
+Skipped:  0
+```
+
+When linting individual files or directories (rather than a package), we
+can execute `lintr::lint()` on the file or `lintr::lint_dir()` on the
+directory. The results are silent if no problems exist otherwise, by
+default, they will show up in the R console. You can also use `cache =
+TRUE` to store the linting results as a cache in the directory.
+
+The following lints the `my_functions.R` file. Since there are no errors
+the results are silent.
+
+``` r
+lintr::lint("my_functions.R")
+```
 
 ## Mocking
 
+Sometimes we need to mock functionality in our code. Most commonly,
+[mocking](https://en.wikipedia.org/wiki/Mock_object) is the act of
+simulating an object that mimics the behavior of real objects. This can
+as complex as mocking that a system is Windows versus Linux or as simple
+as mocking that a certain environment variable is a specific value.
+
+A recent [blog post](https://blog.r-hub.io/2019/10/29/mocking/) provides
+an excellent summary of the R resources available for mocking. However,
+probably the most commonly used package for mocking is
+[**mockery**](https://github.com/r-lib/mockery).
+
+For example, say your company operates on on-prem servers and in the
+cloud. You may have a package that can be used in both environments but
+requires slight differences based on which one the user is operating. We
+can simulate with the following
+function:
+
+``` r
+# a function that does one thing on a Windows OS and does another for all other 
+# OS's
+my_function <- function() {
+  if (Sys.info()[["sysname"]] == "Windows") {
+    return("Do A")
+  } else {
+    return("Do B")
+  }
+}
+```
+
+I’m currently working on a Mac OS…
+
+``` r
+Sys.info()[["sysname"]]
+#> [1] "Darwin"
+```
+
+so this function would…
+
+``` r
+my_function()
+#> [1] "Do B"
+```
+
+However, when testing we may want to mock a Windows OS to ensure certain
+errors occur or for other reasons. To do so we “stub” our function with
+`mockery::stub()` and specify:
+
+  - `where`: the function where we want to mock some value
+  - `what`: name of the underlying function within `where` that you want
+    to override the object value
+  - `how`: replacement function or value to use instead of the actual
+    value provided by `what`
+
+<!-- end list -->
+
+``` r
+mockery::stub(
+   where = my_function,
+   what = "Sys.info", 
+   how = c(sysname = "Windows")
+   )
+
+# Different output
+my_function()
+#> [1] "Do A"
+```
+
+Note, this only mocks `Sys.info` in the local environment but does not
+actually change `Sys.info`:
+
+``` r
+Sys.info()[["sysname"]]
+#> [1] "Darwin"
+```
+
 ## Understanding Coverage
+
+The [**covr**](https://github.com/r-lib/covr) package provides a
+framework for measuring unit test coverage. We can measure coverage for
+both packages and also for unit testing on .R files.
+
+For example, say we want to test the test coverage for the
+`my_functions.R` script. In this case I get the test files relevant for
+this script. Here I simply exclude the last test file since it was
+simply to demo what happens when a test has an error.
+
+``` r
+test_paths <- file.path("tests", list.files("tests"))[1:7]
+```
+
+Next, we use `covr::code_coverage` and specify the file of interest
+along with the test files to apply. The results indicate 100% test
+coverage.
+
+``` r
+covr::file_coverage(source_files = "my_functions.R", test_files = test_paths)
+#> Coverage: 100.00%
+#> my_functions.R: 100.00%
+```
+
+We can also test a package using
+`covr::package_coverage("pkg_directory)`:
+
+``` r
+covr::package_coverage("examplepkg")
+#> examplepkg Coverage: 100.00%
+#> R/my-functions.R: 100.00%
+```
+
+When using [Travis-CI](https://travis-ci.org/) you can track your
+coverage with [Codecov](https://codecov.io/). See
+[here](https://github.com/r-lib/covr) for details. When working with
+Azure DevOps pipeline you can use the following to run covr on a package
+and output the results in a `coverage.xml` file so it is available in
+the Azure Pipelines for reporting.
+
+``` r
+covr::azure("examplepkg")
+```

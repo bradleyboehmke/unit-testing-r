@@ -14,4 +14,5 @@ LazyData: true
 URL: https://github.com/bradleyboehmke/unit-testing-r
 RoxygenNote: 6.1.1
 Suggests: 
-    testthat
+    testthat,
+    covr

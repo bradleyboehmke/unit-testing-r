@@ -1,6 +1,13 @@
-context("Require no code style errors")
+context("Using lint_package")
+test_that("Using lint_package", {
+  error_exists <- tryCatch(
+    suppressMessages(lintr::lint_package(exclusions = list("R/zzz.R"))),
+    warning = function(w) TRUE
+  )
+  expect_false(isTRUE(error_exists))
+})
 
-# if testing a package
-test_that("Package has no lintr errors", {
-  lintr::expect_lint_free()
+context("Using expect_lint_free")
+test_that("Using expect_lint_free", {
+  lintr::expect_lint_free(exclusions = list("R/zzz.R"))
 })

@@ -1,0 +1,3 @@
+.onAttach <- function(...) {
+  packageStartupMessage("Hello!")
+}

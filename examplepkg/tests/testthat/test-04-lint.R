@@ -9,5 +9,8 @@ test_that("Using lint_package", {
 
 context("Using expect_lint_free")
 test_that("Using expect_lint_free", {
-  lintr::expect_lint_free(exclusions = list("R/zzz.R"))
+  lintr::expect_lint_free(
+    exclusions = list(
+      rprojroot::find_package_root_file("R/zzz.R")
+    ))
 })
